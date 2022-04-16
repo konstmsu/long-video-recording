@@ -67,10 +67,13 @@ class FpsCounter:
         self.started_at = timeit.default_timer()
         self.frame_count = 0
 
+    @property
+    def elapsed(self):
+        return timeit.default_timer() - self.started_at
+
     def increment(self):
         self.frame_count += 1
 
     def summary(self):
-        duration = timeit.default_timer() - self.started_at
-        fps = self.frame_count / duration
+        fps = self.frame_count / self.elapsed
         return f"FPS={fps:.2f}"

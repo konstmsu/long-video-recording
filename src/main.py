@@ -1,4 +1,6 @@
+from contextlib import closing
 from dataclasses import dataclass
+from datetime import timedelta, datetime
 from pathlib import Path
 from time import sleep
 from typing import Dict, List
@@ -26,7 +28,7 @@ class VideoWriter:
             height, width, _channels = frame.shape
             self.vid_cod = cv2.VideoWriter_fourcc(*"XVID")
             self.output = cv2.VideoWriter(
-                str(self.path), self.vid_cod, 30.0, (width, height)
+                str(self.path), self.vid_cod, 28.0, (width, height)
             )
 
         self.output.write(frame)
@@ -36,7 +38,27 @@ class VideoWriter:
             self.output.release()
 
 
+def record_video(duration: timedelta):
+    print("recording...")
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+
+    with closing(VideoWriter(f"cam_video {datetime.now():%b %d %t}.mp4")) as output:
+        fps_counter = FpsCounter()
+        while fps_counter.elapsed < duration.total_seconds():
+            ret, frame = cap.read()
+            output.write(frame)
+    print("finished")
+
+
 def main():
+    while True:
+        record_video(timedelta(seconds=2))
+        print("Sleeping...")
+        sleep(5)
+
+
+def main3():
     timed = TimedCode()
 
     with timed.section("setup"):
@@ -46,22 +68,20 @@ def main():
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        vid_cod = cv2.VideoWriter_fourcc(*"XVID")
-        output = cv2.VideoWriter("cam_video.mp4", vid_cod, 30.0, (width, height))
+    with closing(VideoWriter("cam_video.mp4")) as output:
+        fps_counter = FpsCounter()
+        while True:
+            with timed.section("read frame"):
+                ret, frame = cap.read()
 
-    fps_counter = FpsCounter()
-    while True:
-        with timed.section("read frame"):
-            ret, frame = cap.read()
+            # imwrite(f"./images/{fps_counter.frame_count}.png", frame)
 
-        imwrite(f"./images/{fps_counter.frame_count}.png", frame)
+            with timed.section("write frame"):
+                output.write(frame)
 
-        with timed.section("write frame"):
-            output.write(frame)
-
-        fps_counter.increment()
-        if fps_counter.frame_count % 10 == 0:
-            print(fps_counter.summary())
+            fps_counter.increment()
+            if fps_counter.frame_count % 10 == 0:
+                print(fps_counter.summary())
 
 
 def main2():

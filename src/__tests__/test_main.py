@@ -6,14 +6,14 @@ from utils import Paths
 
 
 @contextmanager
-def temp_file(path: Path):
+def temp_file(path: Path, keep: bool=False):
     if isinstance(path, str):
         path = Path(path)
 
     try:
         yield path
     finally:
-        if path.exists():
+        if not keep and path.exists():
             path.unlink()
 
 

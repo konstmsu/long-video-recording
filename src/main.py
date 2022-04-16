@@ -1,27 +1,67 @@
+from dataclasses import dataclass
+from pathlib import Path
+from time import sleep
+from typing import Dict, List
+
 import cv2
+from cv2 import Mat
+
+from timed import FpsCounter, TimedCode
+
+
+def imwrite(path: Path, frame: Mat) -> None:
+    retval = cv2.imwrite(path, frame)
+    if not retval:
+        raise Exception(f"Failed to write to {path}")
+
+
+class VideoWriter:
+    def __init__(self, path: Path):
+        self.path = path
+        self.vid_cod = None
+        self.output = None
+
+    def write(self, frame: Mat) -> None:
+        if self.output is None:
+            height, width, _channels = frame.shape
+            self.vid_cod = cv2.VideoWriter_fourcc(*"XVID")
+            self.output = cv2.VideoWriter(
+                str(self.path), self.vid_cod, 30.0, (width, height)
+            )
+
+        self.output.write(frame)
+
+    def close(self) -> None:
+        if self.output:
+            self.output.release()
 
 
 def main():
-    from pathlib import Path
-    import timeit
+    timed = TimedCode()
 
-    cap = cv2.VideoCapture(0)
-    width = 1920
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-    vid_cod = cv2.VideoWriter_fourcc(*"XVID")
-    output = cv2.VideoWriter("cam_video.mp4", vid_cod, 20.0, (640, 480))
+    with timed.section("setup"):
+        cap = cv2.VideoCapture(0)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
 
-    frame_count = 0
-    started_at = timeit.default_timer()
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        vid_cod = cv2.VideoWriter_fourcc(*"XVID")
+        output = cv2.VideoWriter("cam_video.mp4", vid_cod, 30.0, (width, height))
+
+    fps_counter = FpsCounter()
     while True:
-        ret, frame = cap.read()
-        output.write(frame)
+        with timed.section("read frame"):
+            ret, frame = cap.read()
 
-        elapsed = timeit.default_timer() - started_at
-        frame_count += 1
-        fps = frame_count / elapsed
-        if frame_count % 10 == 0:
-            print(f"{fps=}")
+        imwrite(f"./images/{fps_counter.frame_count}.png", frame)
+
+        with timed.section("write frame"):
+            output.write(frame)
+
+        fps_counter.increment()
+        if fps_counter.frame_count % 10 == 0:
+            print(fps_counter.summary())
 
 
 def main2():
